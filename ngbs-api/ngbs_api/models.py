@@ -2,7 +2,23 @@ from typing import Any, ClassVar, Self, Type
 
 from pydantic import BaseModel, field_validator
 
+from ngbs_api.errors import MissingThermostatsData, WrongThermostatCount
+
 from .types import CEMode, HCMode
+
+
+class ThermostatID(BaseModel):
+    icon_id: int
+    thermostat_id: int
+
+    @classmethod
+    def from_str(cls: Type[Self], key: str) -> Self:
+        icon_id, thermostat_id = key.split(".")
+
+        return cls(icon_id=int(icon_id), thermostat_id=int(thermostat_id))
+
+    def __str__(self) -> str:
+        return f"{self.icon_id}.{self.thermostat_id}"
 
 
 class ThermostatData(BaseModel):
@@ -41,12 +57,11 @@ class ThermostatData(BaseModel):
     heating_eco: float
     heating_setpoint: float
     humidity: float
-    icon_id: int
     live: bool
     manual_adjustment: float
     name: str
     temperature: float
-    thermo_id: int
+    thermostat_id: ThermostatID
 
     @field_validator(
         "cooling_dx",
@@ -104,12 +119,41 @@ class ThermostatData(BaseModel):
         raise ValueError(f"Cannot convert {type(value).__name__} to CEMode")
 
     @classmethod
-    def from_response_dict(cls: Type[Self], data: dict[str, Any], icon_id: int, thermo_id: int) -> Self:
+    def from_response(cls: Type[Self], data: dict[str, Any], thermostat_id: ThermostatID) -> Self:
         return cls(
-            icon_id=icon_id,
-            thermo_id=thermo_id,
+            thermostat_id=thermostat_id,
             **{field_name: data[label] for field_name, label in ThermostatData.FIELDS.items()},
         )
+
+
+class ThermostatsData(BaseModel):
+    thermostats: list[ThermostatData]
+
+    @classmethod
+    def from_response(cls: Type[Self], data: dict[str, Any]) -> Self:
+        thermostats = []
+
+        # Thermostat key E.G.: 1.2 (iCON id: 1, Thermostat id: 2)
+        for thermostat_key, thermostat_values in data.get("DP", {}).items():
+            thermostat_id = ThermostatID.from_str(thermostat_key)
+
+            # Ignoring unused thermostats
+            if not thermostat_values.get("LIVE", 0):
+                continue
+
+            thermostats.append(ThermostatData.from_response(thermostat_values, thermostat_id))
+
+        thermostat_cnt = len(thermostats)
+        if thermostat_cnt == 0:
+            raise MissingThermostatsData("Thermostat data is missing from iCON response!")
+
+        if thermostat_cnt % 8 != 0:
+            raise WrongThermostatCount(f"Thermostat count '{thermostat_cnt}' is incorrect (must be a multiple of 8)!")
+
+        # Sort by icon_id then thermostat id
+        thermostats.sort(key=lambda thermostat: str(thermostat))
+
+        return cls(thermostats=thermostats)
 
 
 class GeneralData(BaseModel):
@@ -192,5 +236,5 @@ class GeneralData(BaseModel):
         raise ValueError(f"Cannot convert {type(value).__name__} to CEMode")
 
     @classmethod
-    def from_response_dict(cls: Type[Self], data: dict[str, Any]) -> Self:
+    def from_response_json(cls: Type[Self], data: dict[str, Any]) -> Self:
         return cls(**{field_name: data[label] for field_name, label in GeneralData.FIELDS.items()})
