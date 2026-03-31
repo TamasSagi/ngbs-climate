@@ -1,0 +1,16 @@
+indent-width = 4
+line-length = 120
+
+# Declare "ngbs_api" as the source root of this project
+src = ["ngbs_api"]
+
+[lint]
+extend-select = ["I"]
+
+[lint.isort]
+# Tell Ruff that "ngbs_api" is the project package
+known-first-party = ["ngbs_api"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
