@@ -1,10 +1,9 @@
 from typing import Any, ClassVar, Self, Type
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 
 from ngbs_api.errors import MissingThermostatsData, WrongThermostatCount
-
-from .types import CEMode, HCMode
+from ngbs_api.validators import BoolConv, CEModeConv, FloatConv, HCModeConv
 
 
 class ThermostatID(BaseModel):
@@ -43,80 +42,25 @@ class ThermostatData(BaseModel):
         "temperature": "TEMP",
     }
 
-    ce_mode: CEMode
-    child_lock: bool
-    condensation: bool
-    contact_signal: bool
-    cooling_dx: float
-    cooling_eco: float
-    cooling_setpoint: float
-    dew_point: float
-    frost: bool
-    hc_mode: HCMode
-    heating_dx: float
-    heating_eco: float
-    heating_setpoint: float
-    humidity: float
-    live: bool
-    manual_adjustment: float
+    ce_mode: CEModeConv
+    child_lock: BoolConv
+    condensation: BoolConv
+    contact_signal: BoolConv
+    cooling_dx: FloatConv
+    cooling_eco: FloatConv
+    cooling_setpoint: FloatConv
+    dew_point: FloatConv
+    frost: BoolConv
+    hc_mode: HCModeConv
+    heating_dx: FloatConv
+    heating_eco: FloatConv
+    heating_setpoint: FloatConv
+    humidity: FloatConv
+    live: BoolConv
+    manual_adjustment: FloatConv
     name: str
-    temperature: float
+    temperature: FloatConv
     thermostat_id: ThermostatID
-
-    @field_validator(
-        "cooling_dx",
-        "cooling_eco",
-        "cooling_setpoint",
-        "dew_point",
-        "heating_dx",
-        "heating_eco",
-        "heating_setpoint",
-        "humidity",
-        "manual_adjustment",
-        "temperature",
-        mode="before",
-    )
-    @staticmethod
-    def convert_float(value):
-        if isinstance(value, (int, float)):
-            return float(value)
-        if isinstance(value, str):
-            return float(value)
-
-        raise ValueError(f"Cannot convert {type(value).__name__} to float")
-
-    @field_validator(
-        "child_lock",
-        "condensation",
-        "contact_signal",
-        "frost",
-        "live",
-        mode="before",
-    )
-    @staticmethod
-    def convert_bool(value):
-        if isinstance(value, int):
-            return bool(value)
-        if isinstance(value, str):
-            return value.lower() in ("true", "1", "yes", "on")
-
-        raise ValueError(f"Cannot convert {type(value).__name__} to bool")
-
-    @field_validator("hc_mode", mode="before")
-    @staticmethod
-    def convert_hc_mode(value):
-        if isinstance(value, int):
-            return HCMode.HEATING if value == 0 else HCMode.COOLING
-
-        raise ValueError(f"Cannot convert {type(value).__name__} to HCMode")
-
-    @field_validator("ce_mode", mode="before")
-    @staticmethod
-    def convert_ce_mode(value):
-        if isinstance(value, int):
-            return CEMode.COMFORT if value == 0 else CEMode.ECONOMY
-
-        raise ValueError(f"Cannot convert {type(value).__name__} to CEMode")
 
     @classmethod
     def from_response(cls: Type[Self], data: dict[str, Any], thermostat_id: ThermostatID) -> Self:
@@ -173,67 +117,19 @@ class GeneralData(BaseModel):
         "water_temp": "WTEMP",
     }
 
-    active: bool
-    ce_mode: CEMode
-    cooling_setpoint: float
-    eco_cooling: float
-    eco_heating: float
-    error: bool
-    external_temp: float
-    frost_risk: bool
-    hc_mode: HCMode
-    heating_setpoint: float
-    overheat: bool
-    pump_active: bool
-    water_temp: float
-
-    @field_validator(
-        "cooling_setpoint",
-        "eco_cooling",
-        "eco_heating",
-        "external_temp",
-        "heating_setpoint",
-        "water_temp",
-        mode="before",
-    )
-    @staticmethod
-    def convert_float(value: str | int | float) -> float:
-        match value:
-            case str():
-                return float(value)
-            case int():
-                return float(value)
-            case float():
-                return value
-            case _:
-                raise ValueError(f"Cannot convert {type(value).__name__} to float")
-
-    @field_validator("active", "error", "frost_risk", "overheat", "pump_active", mode="before")
-    @staticmethod
-    def convert_bool(value: str | int):
-        match value:
-            case str():
-                return value.lower() in ("true", "1", "yes", "on")
-            case int():
-                return bool(value)
-            case _:
-                raise ValueError(f"Cannot convert {type(value).__name__} to bool")
-
-    @field_validator("hc_mode", mode="before")
-    @staticmethod
-    def convert_hc_mode(value: int) -> HCMode:
-        if isinstance(value, int):
-            return HCMode.HEATING if value == 0 else HCMode.COOLING
-
-        raise ValueError(f"Cannot convert {type(value).__name__} to HCMode")
-
-    @field_validator("ce_mode", mode="before")
-    @staticmethod
-    def convert_ce_mode(value: int) -> CEMode:
-        if isinstance(value, int):
-            return CEMode.COMFORT if value == 0 else CEMode.ECONOMY
-
-        raise ValueError(f"Cannot convert {type(value).__name__} to CEMode")
+    active: BoolConv
+    ce_mode: CEModeConv
+    cooling_setpoint: FloatConv
+    eco_cooling: FloatConv
+    eco_heating: FloatConv
+    error: BoolConv
+    external_temp: FloatConv
+    frost_risk: BoolConv
+    hc_mode: HCModeConv
+    heating_setpoint: FloatConv
+    overheat: BoolConv
+    pump_active: BoolConv
+    water_temp: FloatConv
 
     @classmethod
     def from_response_json(cls: Type[Self], data: dict[str, Any]) -> Self:
