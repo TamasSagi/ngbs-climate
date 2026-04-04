@@ -1,0 +1,45 @@
+name: Python tests & coverage
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ngbs-api/**/*.py"
+      - "ngbs-api/pyproject.toml"
+      - ".github/workflows/python-tests.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "ngbs-api/**/*.py"
+      - "ngbs-api/pyproject.toml"
+      - ".github/workflows/python-tests.yml"
+
+jobs:
+  tests:
+    name: Run tests with coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Sync dependencies
+        working-directory: ngbs-api
+        run: uv sync
+
+      - name: Run pytest with coverage
+        working-directory: ngbs-api
+        run: |
+          uv run pytest \
+            --cov=ngbs_api \
+            --cov-report=xml \
+            --cov-report=term
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: ngbs-api/coverage.xml
