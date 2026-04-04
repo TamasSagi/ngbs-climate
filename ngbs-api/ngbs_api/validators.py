@@ -2,7 +2,7 @@ from typing import Annotated, Any
 
 from pydantic import BeforeValidator
 
-from ngbs_api import CEMode, HCMode
+from ngbs_api.types import CEMode, HCMode
 
 
 def try_convert_to_float(value: Any) -> float:
@@ -10,7 +10,7 @@ def try_convert_to_float(value: Any) -> float:
         return float(value)
 
     except (TypeError, ValueError):
-        raise ValueError(f"Cannot convert {type(value).__name__} to float")
+        raise ValueError(f"Cannot convert type {type(value).__name__} ({value}) to float")
 
 
 def try_convert_to_bool(value: Any):
@@ -19,25 +19,27 @@ def try_convert_to_bool(value: Any):
             return value.lower() in ("true", "1", "yes", "on")
         case int():
             return bool(value)
+        case float():
+            return bool(value)
         case _:
-            raise ValueError(f"Cannot convert {type(value).__name__} to bool")
+            raise ValueError(f"Cannot convert type {type(value).__name__} ({value}) to bool")
 
 
 def try_convert_to_cemode(value: int) -> CEMode:
     if isinstance(value, int):
         return CEMode.COMFORT if value == 0 else CEMode.ECONOMY
 
-    raise ValueError(f"Cannot convert {type(value).__name__} to CEMode")
+    raise ValueError(f"Cannot convert type {type(value).__name__} ({value}) to CEMode")
 
 
 def try_convert_to_hcmode(value: Any) -> HCMode:
     if isinstance(value, int):
         return HCMode.HEATING if value == 0 else HCMode.COOLING
 
-    raise ValueError(f"Cannot convert {type(value).__name__} to HCMode")
+    raise ValueError(f"Cannot convert type {type(value).__name__} ({value}) to HCMode")
 
 
-BoolConv = Annotated[float, BeforeValidator(try_convert_to_bool)]
+BoolConv = Annotated[bool, BeforeValidator(try_convert_to_bool)]
 FloatConv = Annotated[float, BeforeValidator(try_convert_to_float)]
-CEModeConv = Annotated[float, BeforeValidator(try_convert_to_cemode)]
-HCModeConv = Annotated[float, BeforeValidator(try_convert_to_hcmode)]
+CEModeConv = Annotated[CEMode, BeforeValidator(try_convert_to_cemode)]
+HCModeConv = Annotated[HCMode, BeforeValidator(try_convert_to_hcmode)]
