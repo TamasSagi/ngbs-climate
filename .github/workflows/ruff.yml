@@ -23,9 +23,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Ruff linter & formatter
+      - name: Run Ruff linter
         uses: astral-sh/ruff-action@v3
         with:
-          args: |
-            check --output-format=github
-            format --check --diff
+          args: "check --output-format=github ngbs-api"
+
+      - name: Check Ruff formatting
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "format --check --diff ngbs-api"

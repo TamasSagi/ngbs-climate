@@ -5,14 +5,14 @@ from pydantic import TypeAdapter
 
 from ngbs_api import CEMode, HCMode
 from ngbs_api.validators import (
+    BoolConv,
+    CEModeConv,
     FloatConv,
+    HCModeConv,
     try_convert_to_bool,
     try_convert_to_cemode,
     try_convert_to_float,
     try_convert_to_hcmode,
-    BoolConv,
-    CEModeConv,
-    HCModeConv,
 )
 
 
