@@ -5,7 +5,10 @@ line-length = 120
 src = ["ngbs_api"]
 
 [lint]
-extend-select = ["I"]
+extend-select = ["I", "ANN"]
+
+[lint.per-file-ignores]
+"tests/*" = ["ANN"]
 
 [lint.isort]
 # Tell Ruff that "ngbs_api" is the project package
