@@ -2,7 +2,15 @@ from typing import Any, ClassVar, Self, Type
 
 from pydantic import BaseModel
 
-from ngbs_api.errors import MissingThermostatsData, WrongThermostatCount
+from ngbs_api.errors import (
+    InvalidFormatError,
+    InvalidIntegerError,
+    MissingThermostatDataFieldError,
+    MissingThermostatsData,
+    OutOfRangeError,
+    ThermostatParsingError,
+    WrongThermostatCount,
+)
 from ngbs_api.validators import BoolConv, CEModeConv, FloatConv, HCModeConv
 
 
@@ -12,9 +20,23 @@ class ThermostatID(BaseModel):
 
     @classmethod
     def from_str(cls: Type[Self], key: str) -> Self:
-        icon_id, thermostat_id = key.split(".")
+        parts = key.split(".")
+        if len(parts) != 2:
+            raise InvalidFormatError(f"Invalid thermostat key '{key}', expected format '<ICON_ID>.<THERMOSTAT_ID>'")
 
-        return cls(icon_id=int(icon_id), thermostat_id=int(thermostat_id))
+        try:
+            icon_id = int(parts[0])
+            thermostat_id = int(parts[1])
+        except ValueError:
+            raise InvalidIntegerError(f"Both parts of '{key}' must be integers")
+
+        if not (1 <= icon_id <= 8):
+            raise OutOfRangeError(f"icon_id must be between 1 and 8 (inclusive), got {icon_id}")
+
+        if not (1 <= thermostat_id <= 8):
+            raise OutOfRangeError(f"thermostat_id must be between 1 and 8 (inclusive), got {thermostat_id}")
+
+        return cls(icon_id=icon_id, thermostat_id=thermostat_id)
 
     def __str__(self) -> str:
         return f"{self.icon_id}.{self.thermostat_id}"
@@ -64,10 +86,14 @@ class ThermostatData(BaseModel):
 
     @classmethod
     def from_response(cls: Type[Self], data: dict[str, Any], thermostat_id: ThermostatID) -> Self:
-        return cls(
-            thermostat_id=thermostat_id,
-            **{field_name: data[label] for field_name, label in ThermostatData.FIELDS.items()},
-        )
+        fields: dict[str, Any] = {}
+
+        for field_name, label in cls.FIELDS.items():
+            if label not in data:
+                raise MissingThermostatDataFieldError(f"Response missing required field '{label}' for '{field_name}'")
+            fields[field_name] = data[label]
+
+        return cls(thermostat_id=thermostat_id, **fields)
 
 
 class ThermostatsData(BaseModel):
@@ -75,27 +101,41 @@ class ThermostatsData(BaseModel):
 
     @classmethod
     def from_response(cls: Type[Self], data: dict[str, Any]) -> Self:
+        dp = data.get("DP")
+        if dp is None:
+            raise MissingThermostatsData("Response missing 'DP' section entirely")
+
+        thermostat_cnt = 0
         thermostats = []
 
         # Thermostat key E.G.: 1.2 (iCON id: 1, Thermostat id: 2)
-        for thermostat_key, thermostat_values in data.get("DP", {}).items():
+        for thermostat_key, thermostat_values in dp.items():
+            thermostat_cnt += 1
             thermostat_id = ThermostatID.from_str(thermostat_key)
 
             # Ignoring unused thermostats
-            if not thermostat_values.get("LIVE", 0):
+            if not thermostat_values.get("LIVE"):
                 continue
 
-            thermostats.append(ThermostatData.from_response(thermostat_values, thermostat_id))
+            try:
+                thermostats.append(ThermostatData.from_response(thermostat_values, thermostat_id))
 
-        thermostat_cnt = len(thermostats)
+            except MissingThermostatDataFieldError as e:
+                raise MissingThermostatDataFieldError(f"{e} (in thermostat '{thermostat_key}')") from e
+
+            except Exception as e:
+                raise ThermostatParsingError(f"Failed to parse thermostat '{thermostat_key}': {e}") from e
+
         if thermostat_cnt == 0:
             raise MissingThermostatsData("Thermostat data is missing from iCON response!")
 
         if thermostat_cnt % 8 != 0:
+            # FIXME: this is not complete, but good for now.
+            #  The following sequence should not be acceptable: [1.1, 1.2, 2.3, 1.4, 1.6, 1.7, 2.8]
             raise WrongThermostatCount(f"Thermostat count '{thermostat_cnt}' is incorrect (must be a multiple of 8)!")
 
         # Sort by icon_id then thermostat id
-        thermostats.sort(key=lambda thermostat: str(thermostat))
+        thermostats.sort(key=lambda t: (t.thermostat_id.icon_id, t.thermostat_id.thermostat_id))
 
         return cls(thermostats=thermostats)
 
