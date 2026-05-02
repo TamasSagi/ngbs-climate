@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Self, Type
+from typing import Any, ClassVar, Self
 
 from pydantic import BaseModel
 
@@ -19,7 +19,7 @@ class ThermostatID(BaseModel):
     thermostat_id: int
 
     @classmethod
-    def from_str(cls: Type[Self], key: str) -> Self:
+    def from_str(cls: type[Self], key: str) -> Self:
         parts = key.split(".")
         if len(parts) != 2:
             raise InvalidFormatError(f"Invalid thermostat key '{key}', expected format '<ICON_ID>.<THERMOSTAT_ID>'")
@@ -85,7 +85,7 @@ class ThermostatData(BaseModel):
     thermostat_id: ThermostatID
 
     @classmethod
-    def from_response(cls: Type[Self], data: dict[str, Any], thermostat_id: ThermostatID) -> Self:
+    def from_response(cls: type[Self], data: dict[str, Any], thermostat_id: ThermostatID) -> Self:
         fields: dict[str, Any] = {}
 
         for field_name, label in cls.FIELDS.items():
@@ -100,7 +100,7 @@ class ThermostatsData(BaseModel):
     thermostats: list[ThermostatData]
 
     @classmethod
-    def from_response(cls: Type[Self], data: dict[str, Any]) -> Self:
+    def from_response(cls: type[Self], data: dict[str, Any]) -> Self:
         dp = data.get("DP")
         if dp is None:
             raise MissingThermostatsData("Response missing 'DP' section entirely")
@@ -172,5 +172,5 @@ class GeneralData(BaseModel):
     water_temp: FloatConv
 
     @classmethod
-    def from_response_json(cls: Type[Self], data: dict[str, Any]) -> Self:
+    def from_response_json(cls: type[Self], data: dict[str, Any]) -> Self:
         return cls(**{field_name: data[label] for field_name, label in GeneralData.FIELDS.items()})

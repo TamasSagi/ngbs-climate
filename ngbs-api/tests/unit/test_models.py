@@ -1,4 +1,4 @@
-from typing import Any, Type
+from typing import Any
 
 import pytest
 
@@ -34,7 +34,7 @@ def test_valid_from_str():
         ("3.x", InvalidIntegerError),  # partial integer
     ],
 )
-def test_invalid_formats(key: str, expected_exception: Type[ThermostatKeyError]):
+def test_invalid_formats(key: str, expected_exception: type[ThermostatKeyError]):
     with pytest.raises(expected_exception):
         ThermostatID.from_str(key)
 
@@ -77,7 +77,7 @@ def live_thermostat() -> dict[str, Any]:
 
 
 @pytest.fixture
-def incative_thermostat(live_thermostat: dict[str, Any]) -> dict:
+def inactive_thermostat(live_thermostat: dict[str, Any]) -> dict:
     payload = live_thermostat.copy()
     payload["LIVE"] = 0
 
@@ -90,15 +90,15 @@ def test_wrong_dp(data: dict):
         ThermostatsData.from_response(data)
 
 
-def test_wrong_thermostat_count(incative_thermostat: dict[str, Any]):
-    dp = {"1.1": incative_thermostat}
+def test_wrong_thermostat_count(inactive_thermostat: dict[str, Any]):
+    dp = {"1.1": inactive_thermostat}
 
     with pytest.raises(WrongThermostatCount):
         ThermostatsData.from_response({"DP": dp})
 
 
-def test_live_filtering(live_thermostat: dict[str, Any], incative_thermostat: dict[str, Any]):
-    dp = {f"1.{k}": live_thermostat if k > 1 else incative_thermostat for k in range(1, 9)}
+def test_live_filtering(live_thermostat: dict[str, Any], inactive_thermostat: dict[str, Any]):
+    dp = {f"1.{k}": live_thermostat if k > 1 else inactive_thermostat for k in range(1, 9)}
     result = ThermostatsData.from_response({"DP": dp})
 
     assert len(result.thermostats) == 7
